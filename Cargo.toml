@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+base32 = "0.5.1"
+ed25519-dalek = { version = "2", features = ["rand_core", "pem"] }
+rand = "0.8"
