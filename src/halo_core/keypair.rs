@@ -29,28 +29,35 @@ fn load_private_key(path: &str) -> Result<SigningKey, Box<dyn Error>> {
 impl Keypair {
     // Generate an ed25519 keypair.
     // If a private key already exists on the system, we use it instead. 
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
         // Has a keypair already been generated at some point?
-        if fs::metadata("node.key").is_ok() {
-            println!("A private key already exists!");
-            let signing_key = load_private_key("node.key").unwrap();
-            let verifying_key = signing_key.verifying_key();
-            return Keypair {public: verifying_key, private: signing_key}
+        match fs::metadata("node.key") {
+            Ok(_) => {
+                println!("A private key already exists!");
+                let signing_key = load_private_key("node.key")?;
+                let verifying_key = signing_key.verifying_key();
+                return Ok(Keypair {public: verifying_key, private: signing_key});
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                let signing_key = SigningKey::generate(&mut OsRng);
+                let verifying_key = signing_key.verifying_key();
+
+                // Save private key to disk as PEM format (like PGP keys)
+                save_private_key(&signing_key, "node.key").unwrap();
+                return Ok(Keypair {public: verifying_key, private: signing_key});
+            },
+            Err(e) => {
+                return Err(e.into());
+            }
         }
-
-        let signing_key = SigningKey::generate(&mut OsRng);
-        let verifying_key = signing_key.verifying_key();
-
-        // Save private key to disk as PEM format (like PGP keys)
-        save_private_key(&signing_key, "node.key").unwrap();
-
-        Keypair {public: verifying_key, private: signing_key}
     }
 }
 
 impl fmt::Display for Keypair {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // We could display private key.. if we wanted to
+        // We could display private key.. if we wanted to.
+        // We only display the public key we generated, to not expose any secrets.
+        // The pubkey is displayed in a z-base32 encoding.
         write!(f, "{}", base32::encode(Alphabet::Z, &self.public.to_bytes()))
     }
 }
