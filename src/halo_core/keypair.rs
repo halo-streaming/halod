@@ -6,11 +6,12 @@ use rand::rngs::OsRng;
 use std::error::Error;
 use std::fmt;
 use std::fs;
+use tracing::{event, Level};
 
 /// An Ed25519 keypair. The public key is used as a NodeID.
 pub struct Keypair {
-    public: VerifyingKey,
-    private: SigningKey,
+    pubkey: VerifyingKey,
+    privkey: SigningKey,
 }
 
 /// Saves a private key as PKCS#8 PEM format to specified path.
@@ -35,12 +36,12 @@ impl Keypair {
         // Has a keypair already been generated at some point?
         match fs::metadata("node.key") {
             Ok(_) => {
-                println!("A private key already exists!");
+                event!(Level::DEBUG, "A private key already exists!");
                 let signing_key = load_private_key("node.key")?;
                 let verifying_key = signing_key.verifying_key();
                 Ok(Keypair {
-                    public: verifying_key,
-                    private: signing_key,
+                    pubkey: verifying_key,
+                    privkey: signing_key,
                 })
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -50,8 +51,8 @@ impl Keypair {
                 // Save private key to disk as PEM format (like PGP keys)
                 save_private_key(&signing_key, "node.key").unwrap();
                 Ok(Keypair {
-                    public: verifying_key,
-                    private: signing_key,
+                    pubkey: verifying_key,
+                    privkey: signing_key,
                 })
             }
             Err(e) => {
@@ -66,10 +67,6 @@ impl fmt::Display for Keypair {
         // We could display private key.. if we wanted to.
         // We only display the public key we generated, to not expose any secrets.
         // The pubkey is displayed in a z-base32 encoding.
-        write!(
-            f,
-            "{}",
-            base32::encode(Alphabet::Z, &self.public.to_bytes())
-        )
+        write!(f, "{}", base32::encode(Alphabet::Z, &self.pubkey.to_bytes()))
     }
 }

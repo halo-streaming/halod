@@ -7,3 +7,5 @@ edition = "2024"
 base32 = "0.5.1"
 ed25519-dalek = { version = "2", features = ["rand_core", "pem"] }
 rand = "0.8"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
